@@ -10,6 +10,7 @@ import sys
 import shutil
 import re
 import json
+import time
 from datetime import datetime
 
 # All ISCAS85 benchmark circuits
@@ -43,8 +44,8 @@ def copy_missing_verilog_files():
 
 def run_synthesis(circuit_name):
     """
-    Run synthesis on a single circuit and return gate counts.
-    Returns (original_count, optimized_count) or (None, None) on failure.
+    Run synthesis on a single circuit and return gate counts and time.
+    Returns (original_count, optimized_count, synth_time) or (None, None, None) on failure.
     """
     print(f"\n{'='*60}")
     print(f"Processing: {circuit_name}")
@@ -54,7 +55,10 @@ def run_synthesis(circuit_name):
     verilog_file = os.path.join(VERILOG_DIR, f'{circuit_name}.v')
     if not os.path.exists(verilog_file):
         print(f"Error: {verilog_file} not found")
-        return None, None
+        return None, None, None
+
+    # Start timing
+    start_time = time.time()
 
     # Run yosys to generate netlist
     template_file = os.path.join(AUTOHOG_DIR, 'build_template.ys')
@@ -82,14 +86,14 @@ def run_synthesis(circuit_name):
     if result.returncode != 0:
         print(f"Yosys failed for {circuit_name}")
         print(result.stderr)
-        return None, None
+        return None, None, None
 
     # Load config
     config_path = os.path.join(AUTOHOG_DIR, 'config.json')
     with open(config_path, 'r') as f:
         config = json.load(f)
 
-    searchnum_up = config.get('searchnum_up', 7)
+    searchnum_up = config.get('searchnum_up', 32)
     searchnum_low = config.get('searchnum_low', 5)
     replace_num = config.get('replace_num', 3)
 
@@ -106,6 +110,9 @@ def run_synthesis(circuit_name):
     output = result.stdout + result.stderr
     print(output)
 
+    # Calculate elapsed time
+    elapsed_time = time.time() - start_time
+
     # Parse gate counts from output
     original_match = re.search(r'Original gate num:\s*(\d+)', output)
     optimized_match = re.search(r'Optimized gate num:\s*(\d+)', output)
@@ -113,7 +120,9 @@ def run_synthesis(circuit_name):
     original_count = int(original_match.group(1)) if original_match else None
     optimized_count = int(optimized_match.group(1)) if optimized_match else None
 
-    return original_count, optimized_count
+    print(f"Synthesis time: {elapsed_time:.2f}s")
+
+    return original_count, optimized_count, elapsed_time
 
 
 def main():
@@ -143,40 +152,47 @@ def main():
         results = {}
 
         for circuit in ISCAS85_CIRCUITS:
-            original, optimized = run_synthesis(circuit)
+            original, optimized, synth_time = run_synthesis(circuit)
             results[circuit] = {
                 'original': original,
-                'optimized': optimized
+                'optimized': optimized,
+                'synth_time': synth_time
             }
             # Log intermediate results
-            log_print(f"  {circuit}: original={original}, optimized={optimized}")
+            time_str = f"{synth_time:.2f}s" if synth_time else "N/A"
+            log_print(f"  {circuit}: original={original}, optimized={optimized}, time={time_str}")
 
         # Step 3: Print summary table
-        log_print("\n" + "="*60)
+        log_print("\n" + "="*80)
         log_print("SYNTHESIS RESULTS SUMMARY")
-        log_print("="*60)
-        log_print(f"{'Circuit':<10} {'Original':<12} {'Optimized':<12} {'Reduction':<12}")
-        log_print("-"*60)
+        log_print("="*80)
+        log_print(f"{'Circuit':<10} {'Original':<12} {'Optimized':<12} {'Reduction':<12} {'Time (s)':<12}")
+        log_print("-"*80)
 
         total_original = 0
         total_optimized = 0
+        total_time = 0.0
 
         for circuit in ISCAS85_CIRCUITS:
             orig = results[circuit]['original']
             opt = results[circuit]['optimized']
+            synth_time = results[circuit]['synth_time']
 
             if orig is not None and opt is not None:
                 reduction = ((orig - opt) / orig) * 100
-                log_print(f"{circuit:<10} {orig:<12} {opt:<12} {reduction:>6.2f}%")
+                time_str = f"{synth_time:.2f}" if synth_time else "N/A"
+                log_print(f"{circuit:<10} {orig:<12} {opt:<12} {reduction:>6.2f}%      {time_str:<12}")
                 total_original += orig
                 total_optimized += opt
+                if synth_time:
+                    total_time += synth_time
             else:
-                log_print(f"{circuit:<10} {'FAILED':<12} {'FAILED':<12} {'N/A':<12}")
+                log_print(f"{circuit:<10} {'FAILED':<12} {'FAILED':<12} {'N/A':<12} {'N/A':<12}")
 
-        log_print("-"*60)
+        log_print("-"*80)
         if total_original > 0:
             total_reduction = ((total_original - total_optimized) / total_original) * 100
-            log_print(f"{'TOTAL':<10} {total_original:<12} {total_optimized:<12} {total_reduction:>6.2f}%")
+            log_print(f"{'TOTAL':<10} {total_original:<12} {total_optimized:<12} {total_reduction:>6.2f}%      {total_time:<.2f}")
 
         log_print(f"\nCompleted: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
