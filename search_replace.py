@@ -416,6 +416,7 @@ def find_sameinput(dag):
     return same_input_nodes
       
 def dfs(graph, start, end):
+    """Original DFS implementation - kept for compatibility."""
     stack = [(start, [start])]
     while stack:
         (vertex, path) = stack.pop()
@@ -425,6 +426,26 @@ def dfs(graph, start, end):
             else:
                 stack.append((next_node, path + [next_node]))
     return False
+
+def compute_reachability(dag):
+    """
+    Precompute reachability information for all nodes.
+    Returns a dict mapping each node to its set of descendants.
+    This allows O(1) path existence checks instead of O(n) DFS.
+    """
+    descendants_map = {}
+    for node in dag.nodes:
+        descendants_map[node] = nx.descendants(dag, node)
+    return descendants_map
+
+def has_path_cached(descendants_map, start, end):
+    """
+    Check if there's a path from start to end using precomputed descendants.
+    O(1) lookup instead of O(n) DFS.
+    """
+    if start not in descendants_map:
+        return False
+    return end in descendants_map[start]
 
 def gate_combine_1(dag, node_dic):
     primary_node = node_dic[0]  
@@ -437,11 +458,11 @@ def gate_combine_1(dag, node_dic):
                 dag.add_edge(primary_node, successor, **edge_data)           
         dag.remove_node(node)
         
-def combine_candidates(dag, target_node):   
+def combine_candidates(dag, target_node, descendants_map=None):
     candidate_nodes = deque(node for node in dag.nodes if len(list(dag.predecessors(node))) <= 5 and (dag.nodes[node]['type'] not in ['input', 'output', 'HomGateM', 'NOT', 'BUFF']))
     # candidate_nodes = sorted(candidate_nodes, key=lambda x: abs(x - target_node))
     # random.shuffle(candidate_nodes)
-    merge_candidates = [target_node]  
+    merge_candidates = [target_node]
     inputs = []
     for node in candidate_nodes:
         all_targets = set(merge_candidates)
@@ -449,7 +470,15 @@ def combine_candidates(dag, target_node):
         inputs_temp = define_inputs(dag, all_targets)
         if len(inputs_temp) > 5:
             continue
-        if any(dfs(dag, node, m) or dfs(dag, m, node) for m in merge_candidates):
+        # Use cached reachability if available, otherwise fall back to dfs
+        if descendants_map is not None:
+            has_dependency = any(
+                has_path_cached(descendants_map, node, m) or has_path_cached(descendants_map, m, node)
+                for m in merge_candidates
+            )
+        else:
+            has_dependency = any(dfs(dag, node, m) or dfs(dag, m, node) for m in merge_candidates)
+        if has_dependency:
             continue
         merge_candidates.append(node)
         inputs = inputs_temp
@@ -621,12 +650,17 @@ sorted_node_ids.clear()
 same_input_nodes = find_sameinput(dag)
 sorted_same_input = sort_dict_by_length({key: value for key, value in same_input_nodes.items() if len(value)>1})
 same_input_nodes_filt = []
+
+# Precompute reachability for phase 2 (O(n) computation, enables O(1) lookups)
+descendants_map = compute_reachability(dag)
+
 for node_list in sorted_same_input.values():
     while node_list:
         primary_node = node_list.pop(0)
         new_list = [primary_node]
         for m in node_list[:]:
-            if not (dfs(dag, primary_node, m) or dfs(dag, m, primary_node)):
+            # Use cached reachability instead of dfs
+            if not (has_path_cached(descendants_map, primary_node, m) or has_path_cached(descendants_map, m, primary_node)):
                 new_list.append(m)
                 node_list.remove(m)
         if len(new_list) >= 2:
@@ -636,14 +670,18 @@ for value in same_input_nodes_filt :
     gate_combine_1(dag, value)
 same_input_nodes.clear()
 sorted_same_input.clear()
+descendants_map.clear()
 
 
 #combine gate(<5 input)
+# Recompute reachability after phase 2 modifications
+descendants_map = compute_reachability(dag)
+
 nodes_copy = list(dag.nodes)
 for node in nodes_copy:
     if node in dag.nodes:
         if  len(list(dag.predecessors(node))) <= 5 and (dag.nodes[node]['type'] not in ['input', 'output', 'HomGateM', 'NOT' ,'BUFF']):
-            node_list, input_list = combine_candidates(dag, node)
+            node_list, input_list = combine_candidates(dag, node, descendants_map)
             if len(node_list) > 1:
                 gate_combine_2(dag, node_list, input_list)
             
