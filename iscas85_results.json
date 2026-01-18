@@ -1,0 +1,57 @@
+{
+  "c17": {
+    "original": 6,
+    "optimized": 3,
+    "synth_time": 0.3279259204864502
+  },
+  "c432": {
+    "original": 122,
+    "optimized": 62,
+    "synth_time": 3.3615827560424805
+  },
+  "c499": {
+    "original": 178,
+    "optimized": 78,
+    "synth_time": 2.1937742233276367
+  },
+  "c880": {
+    "original": 254,
+    "optimized": 87,
+    "synth_time": 5.575479984283447
+  },
+  "c1355": {
+    "original": 179,
+    "optimized": 76,
+    "synth_time": 2.4110865592956543
+  },
+  "c1908": {
+    "original": 212,
+    "optimized": 87,
+    "synth_time": 4.4265007972717285
+  },
+  "c2670": {
+    "original": 455,
+    "optimized": 156,
+    "synth_time": 10.061615228652954
+  },
+  "c3540": {
+    "original": 849,
+    "optimized": 311,
+    "synth_time": 18.736461400985718
+  },
+  "c5315": {
+    "original": 1165,
+    "optimized": 350,
+    "synth_time": 22.987495183944702
+  },
+  "c6288": {
+    "original": 1407,
+    "optimized": 474,
+    "synth_time": 59.661293506622314
+  },
+  "c7552": {
+    "original": 1060,
+    "optimized": 375,
+    "synth_time": 24.818700790405273
+  }
+}

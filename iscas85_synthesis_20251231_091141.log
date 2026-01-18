@@ -1,0 +1,44 @@
+============================================================
+AutoHog ISCAS85 Benchmark Synthesis
+Started: 2025-12-31 09:11:41
+============================================================
+
+[Step 1] Checking and copying missing verilog files...
+
+[Step 2] Running synthesis on all ISCAS85 circuits...
+  c17: original=6, optimized=3, time=0.33s
+  c432: original=122, optimized=62, time=3.36s
+  c499: original=178, optimized=78, time=2.19s
+  c880: original=254, optimized=87, time=5.58s
+  c1355: original=179, optimized=76, time=2.41s
+  c1908: original=212, optimized=87, time=4.43s
+  c2670: original=455, optimized=156, time=10.06s
+  c3540: original=849, optimized=311, time=18.74s
+  c5315: original=1165, optimized=350, time=22.99s
+  c6288: original=1407, optimized=474, time=59.66s
+  c7552: original=1060, optimized=375, time=24.82s
+
+================================================================================
+SYNTHESIS RESULTS SUMMARY
+================================================================================
+Circuit    Original     Optimized    Reduction    Time (s)    
+--------------------------------------------------------------------------------
+c17        6            3             50.00%      0.33        
+c432       122          62            49.18%      3.36        
+c499       178          78            56.18%      2.19        
+c880       254          87            65.75%      5.58        
+c1355      179          76            57.54%      2.41        
+c1908      212          87            58.96%      4.43        
+c2670      455          156           65.71%      10.06       
+c3540      849          311           63.37%      18.74       
+c5315      1165         350           69.96%      22.99       
+c6288      1407         474           66.31%      59.66       
+c7552      1060         375           64.62%      24.82       
+--------------------------------------------------------------------------------
+TOTAL      5887         2059          65.02%      154.56
+
+Completed: 2025-12-31 09:14:15
+
+Results saved to:
+  JSON: /home/ubuntu/sources/AutoHog/iscas85_results.json
+  Log:  /home/ubuntu/sources/AutoHog/iscas85_synthesis_20251231_091141.log
