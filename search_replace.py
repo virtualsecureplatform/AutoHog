@@ -44,8 +44,11 @@ def json_to_dag(json_file):
         for  bit_node in port_attr['bits']:
             count = count + 1
             if port_type == 'output':
+                    # Skip constant bits (yosys represents them as strings "0"/"1")
+                    if isinstance(bit_node, str):
+                        continue
                     new_name = f"{port_name}_{bit_node}"
-                    G.add_node(new_name ,type=port_type)  
+                    G.add_node(new_name ,type=port_type)
                     G.add_edge(bit_node, new_name )
             elif port_type == 'input':
                 if bit_node in G:
@@ -448,14 +451,18 @@ def has_path_cached(descendants_map, start, end):
     return end in descendants_map[start]
 
 def gate_combine_1(dag, node_dic):
-    primary_node = node_dic[0]  
-    dag.nodes[primary_node]['type'] = 'HomGateM'   
+    primary_node = node_dic[0]
+    dag.nodes[primary_node]['type'] = 'HomGateM'
     secondary_nodes = node_dic[1:]
+    merge_set = set(node_dic)
     for node in secondary_nodes:
-        for successor in dag.successors(node):
+        for successor in list(dag.successors(node)):
+            # Skip edges that would create cycles (successor is in the merge group)
+            if successor in merge_set:
+                continue
             for key in dag[node][successor]:
                 edge_data = dag[node][successor][key]
-                dag.add_edge(primary_node, successor, **edge_data)           
+                dag.add_edge(primary_node, successor, **edge_data)
         dag.remove_node(node)
         
 def combine_candidates(dag, target_node, descendants_map=None):
@@ -684,6 +691,8 @@ for node in nodes_copy:
             node_list, input_list = combine_candidates(dag, node, descendants_map)
             if len(node_list) > 1:
                 gate_combine_2(dag, node_list, input_list)
+                # Recompute reachability after DAG modification to prevent cycles
+                descendants_map = compute_reachability(dag)
             
 print('Optimized gate num: ',count_gate(dag))
 
